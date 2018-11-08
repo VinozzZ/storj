@@ -28,6 +28,7 @@ import (
 	"storj.io/storj/storage/redis/redisserver"
 	"storj.io/storj/storage/storelogger"
 	"storj.io/storj/storage/teststore"
+	"storj.io/storj/pkg/statdb/sdbclient"
 )
 
 var (
@@ -470,7 +471,7 @@ func TestRedisPut(t *testing.T) {
 	for _, c := range putCases {
 		t.Run(c.testID, func(t *testing.T) {
 			db := redisTestClient(t, redisAddr, c.data)
-			oc := Cache{DB: db}
+			oc := Cache{DB: db, statdb: sdbclient.NewMockClient()}
 
 			err := oc.Put(ctx, c.key, c.value)
 			assertErrClass(t, c.expectedErrors[_redis], err)
@@ -480,7 +481,8 @@ func TestRedisPut(t *testing.T) {
 
 			na := &pb.Node{}
 			assert.NoError(t, proto.Unmarshal(v, na))
-			assert.True(t, proto.Equal(na, &c.value))
+			assert.True(t, proto.Equal(na.Address, c.value.Address))
+			assert.EqualValues(t, na.Id, c.value.Id)
 		})
 	}
 }
@@ -518,7 +520,7 @@ func TestBoltPut(t *testing.T) {
 			db, cleanup := boltTestClient(t, c.data)
 			defer cleanup()
 
-			oc := Cache{DB: db}
+			oc := Cache{DB: db, statdb: sdbclient.NewMockClient()}
 
 			err := oc.Put(ctx, c.key, c.value)
 			assertErrClass(t, c.expectedErrors[_redis], err)
@@ -528,7 +530,8 @@ func TestBoltPut(t *testing.T) {
 			na := &pb.Node{}
 
 			assert.NoError(t, proto.Unmarshal(v, na))
-			assert.True(t, proto.Equal(na, &c.value))
+			assert.True(t, proto.Equal(na.Address, c.value.Address))
+			assert.EqualValues(t, na.Id, c.value.Id)
 		})
 	}
 }
@@ -589,7 +592,7 @@ func TestMockPut(t *testing.T) {
 			}
 			db.CallCount.Put = 0
 
-			oc := Cache{DB: db}
+			oc := Cache{DB: db, statdb: sdbclient.NewMockClient()}
 
 			err := oc.Put(ctx, c.key, c.value)
 			assertErrClass(t, c.expectedErrors[mock], err)
@@ -600,7 +603,8 @@ func TestMockPut(t *testing.T) {
 
 			na := &pb.Node{}
 			assert.NoError(t, proto.Unmarshal(v, na))
-			assert.True(t, proto.Equal(na, &c.value))
+			assert.True(t, proto.Equal(na.Address, c.value.Address))
+			assert.EqualValues(t, na.Id, c.value.Id)
 		})
 	}
 }
@@ -622,6 +626,7 @@ func TestRefresh(t *testing.T) {
 			_cache := &Cache{
 				DB:  db,
 				DHT: dht,
+				statdb: sdbclient.NewMockClient(),
 			}
 
 			err := _cache.Refresh(ctx)
