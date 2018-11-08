@@ -5,7 +5,6 @@ package sdbclient
 
 import (
 	"context"
-	"fmt"
 
 	pb "storj.io/storj/pkg/statdb/proto"
 )
@@ -76,7 +75,6 @@ func (sdb *MockStatDB) UpdateBatch(ctx context.Context, nodes []*pb.Node) (stats
 
 // CreateEntryIfNotExists creates a db entry for a node if entry doesn't already exist
 func (sdb *MockStatDB) CreateEntryIfNotExists(ctx context.Context, nodeID []byte) (stats *pb.NodeStats, err error) {
-	fmt.Println("in create entry if not exists ~~~~~")
 	stats = &pb.NodeStats{
 		AuditSuccessRatio: 0,
 		UptimeRatio:       0,
