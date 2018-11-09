@@ -22,13 +22,13 @@ import (
 	"storj.io/storj/pkg/node"
 	"storj.io/storj/pkg/pb"
 	"storj.io/storj/pkg/provider"
+	"storj.io/storj/pkg/statdb/sdbclient"
 	"storj.io/storj/storage"
 	"storj.io/storj/storage/boltdb"
 	"storj.io/storj/storage/redis"
 	"storj.io/storj/storage/redis/redisserver"
 	"storj.io/storj/storage/storelogger"
 	"storj.io/storj/storage/teststore"
-	"storj.io/storj/pkg/statdb/sdbclient"
 )
 
 var (
@@ -624,8 +624,8 @@ func TestRefresh(t *testing.T) {
 			dht := newTestKademlia(t, "127.0.0.1", "0", dhts[rand.Intn(testNetSize)], b)
 
 			_cache := &Cache{
-				DB:  db,
-				DHT: dht,
+				DB:     db,
+				DHT:    dht,
 				statdb: sdbclient.NewMockClient(),
 			}
 
