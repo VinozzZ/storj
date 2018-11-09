@@ -5,16 +5,23 @@ package bwagreement
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"strings"
 	"sync"
 
+	"github.com/gtank/cryptopasta"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	dbx "storj.io/storj/pkg/bwagreement/dbx"
 	"storj.io/storj/pkg/pb"
+	"storj.io/storj/pkg/peertls"
+	"storj.io/storj/pkg/provider"
 )
+
+// OK - Success!
+const OK = "OK"
 
 // Server is an implementation of the pb.BandwidthServer interface
 type Server struct {
@@ -100,6 +107,10 @@ func (s *Server) BandwidthAgreements(stream pb.Bandwidth_BandwidthAgreementsServ
 		case <-ctx.Done():
 			return nil
 		case agreement := <-ch:
+			err = s.verifySignature(ctx, agreement)
+			if err != nil {
+				return err
+			}
 			_, err = s.Create(ctx, agreement)
 			if err != nil {
 				s.logger.Error("DB entry creation Error", zap.Error(err))
@@ -116,4 +127,22 @@ func (s *Server) GetBandwidthAllocations(ctx context.Context) (rows []*dbx.Bwagr
 	defer s.locked()()
 	rows, err = s.DB.All_Bwagreement(ctx)
 	return rows, err
+}
+
+func (s *Server) verifySignature(ctx context.Context, ba *pb.RenterBandwidthAllocation) error {
+	// TODO(security): detect replay attacks
+	pi, err := provider.PeerIdentityFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	k, ok := pi.Leaf.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return peertls.ErrUnsupportedKey.New("%T", pi.Leaf.PublicKey)
+	}
+
+	if ok := cryptopasta.Verify(ba.GetData(), ba.GetSignature(), k); !ok {
+		return BwAgreementError.New("Failed to verify Signature")
+	}
+	return nil
 }
